@@ -1,6 +1,6 @@
 # Greenhouse IoT
 
-IoT application implemented from [things-core](https://github.com/microapis/things-core) and connected to [things-api](https://github.com/microapis/things-api) is responsible for implementing an intelligent greenhouse connected to the cloud that controls the devices/controllers to automatically have good environment..
+IoT application implemented from [things-core](https://github.com/microapis/things-core) and connected to [things-api](https://github.com/microapis/things-api) is responsible for implementing an intelligent greenhouse connected to the cloud.
 
 # TODO
 
