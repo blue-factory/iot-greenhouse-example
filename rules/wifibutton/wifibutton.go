@@ -1,4 +1,4 @@
-package buttonwifi
+package wifibutton
 
 import (
 	"errors"
@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/microapis/iot-core/persist"
+	"github.com/microapis/iot-core/rules"
 	"gobot.io/x/gobot/drivers/gpio"
 	"gobot.io/x/gobot/platforms/raspi"
 )
 
-//WifiButton ...
+// WifiButton ...
 type WifiButton struct {
 	btn   *gpio.ButtonDriver
 	start time.Time
@@ -21,8 +22,8 @@ type WifiButton struct {
 	p *persist.Persist
 }
 
-//NewWifiButton ...
-func NewWifiButton(adaptator string, pin string, actionDelay int64, persist *persist.Persist) (*WifiButton, error) {
+// New ...
+func New(adaptator string, pin string, actionDelay int64) (*WifiButton, error) {
 	var adaptor *raspi.Adaptor
 
 	switch adaptator {
@@ -33,37 +34,45 @@ func NewWifiButton(adaptator string, pin string, actionDelay int64, persist *per
 	}
 
 	// set ble value to persist
-	err := persist.SetBool("ble", false)
-	if err != nil {
-		log.Println(fmt.Sprintf("[IoTGreenhouse][WifiButton][PushButton][Error] err = %v", err))
-		return nil, err
-	}
+	// err := persist.SetBool("ble", false)
+	// if err != nil {
+	// 	log.Println(fmt.Sprintf("[IoTGreenhouse][WifiButton][PushButton][Error] err = %v", err))
+	// 	return nil, err
+	// }
 
 	return &WifiButton{
 		btn:   gpio.NewButtonDriver(adaptor, pin),
 		ad:    actionDelay, // default: 4000 ms
 		start: time.Now(),
-		p:     persist,
+		// p:     persist,
 	}, nil
 }
 
 // Run ...
-func (wb *WifiButton) Run() {
+func (wb *WifiButton) Run(persist *persist.Persist) error {
 	// add listeners
 	wb.btn.On(gpio.ButtonPush, wb.push)
 	wb.btn.On(gpio.ButtonRelease, wb.release)
+
+	return nil
 }
 
 // Stop ...
-func (wb *WifiButton) Stop() {
+func (wb *WifiButton) Stop(persist *persist.Persist) error {
+	log.Println("[IoTGreenhouse][WifiButton][Push][Info] here in Stop method")
+
 	// remove listeners
 	wb.btn.DeleteEvent(gpio.ButtonPush)
 	wb.btn.DeleteEvent(gpio.ButtonRelease)
+
+	return nil
 }
 
 // Halt ...
-func (wb *WifiButton) Halt() error {
-	wb.Stop()
+func (wb *WifiButton) Halt(persist *persist.Persist) error {
+	log.Println("[IoTGreenhouse][WifiButton][Push][Info] here in Halt method")
+
+	wb.Stop(persist)
 
 	err := wb.btn.Halt()
 	if err != nil {
@@ -140,7 +149,7 @@ func (wb *WifiButton) release(_ interface{}) {
 		}
 
 		// set ble value to persist
-		err := wb.p.SetBool("ble", status)
+		err = wb.p.SetBool("ble", status)
 		if err != nil {
 			log.Println(fmt.Sprintf("[IoTGreenhouse][WifiButton][Release][Error] err = %v", err))
 			return
@@ -163,4 +172,9 @@ func (wb *WifiButton) enableBLE() error {
 func (wb *WifiButton) disableBLE() error {
 	fmt.Println("here in disableBLE method")
 	return nil
+}
+
+// ToRule ...
+func (wb *WifiButton) ToRule() (*rules.Rule, error) {
+	return nil, nil
 }

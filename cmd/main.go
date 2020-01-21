@@ -5,16 +5,42 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/microapis/iot-core/rules"
+	"github.com/microapis/iot-greenhouse-example/rules/wifibutton"
+)
+
+const (
+	adaptor   = "raspi"
+	buttonPin = "16"
 )
 
 func main() {
-	// Load config values
-	// Define quit chan to send interruption
+	// define quit chan to send interruption
 	quit := make(chan struct{})
+
+	// define new rule engine
+	r := rules.NewRuleEngine()
+
+	// define wifi button instance
+	wb, err := wifibutton.New(adaptor, buttonPin, 4000)
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+
+	// add greenhouse rules
+	r.Set("wifi-button", wb)
+
+	err = r.Start()
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
 
 	listenInterrupt(quit)
 	<-quit
-	gracefullShutdown()
+	gracefullShutdown(r)
 }
 
 func listenInterrupt(quit chan struct{}) {
@@ -27,4 +53,10 @@ func listenInterrupt(quit chan struct{}) {
 	}()
 }
 
-func gracefullShutdown() {}
+func gracefullShutdown(r *rules.RuleEngine) {
+	err := r.Halt()
+	if err != nil {
+		log.Fatalln(err)
+		return
+	}
+}
