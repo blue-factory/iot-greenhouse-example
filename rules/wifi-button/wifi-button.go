@@ -1,11 +1,13 @@
 package buttonwifi
 
 import (
+	"errors"
 	"fmt"
 	"log"
 	"strconv"
 	"time"
 
+	"github.com/microapis/iot-core/persist"
 	"gobot.io/x/gobot/drivers/gpio"
 	"gobot.io/x/gobot/platforms/raspi"
 )
@@ -14,21 +16,24 @@ import (
 type WifiButton struct {
 	btn   *gpio.ButtonDriver
 	start time.Time
-	ad    int
+	ad    int64
 
-	p *Persist
+	p *persist.Persist
 }
 
-/* should save in persist iot module */
-// bluetoothMode bool
-// blocked       bool
-
 //NewWifiButton ...
-func NewWifiButton(pin string, actionDelay int, persist *Persist) *WifiButton {
-	adaptor := raspi.NewAdaptor()
+func NewWifiButton(adaptator string, pin string, actionDelay int64, persist *persist.Persist) (*WifiButton, error) {
+	var adaptor *raspi.Adaptor
+
+	switch adaptator {
+	case "raspi":
+		adaptor = raspi.NewAdaptor()
+	default:
+		return nil, errors.New("invalid adaptator")
+	}
 
 	// set ble value to persist
-	err := wb.p.SetBool("ble", false)
+	err := persist.SetBool("ble", false)
 	if err != nil {
 		log.Println(fmt.Sprintf("[IoTGreenhouse][WifiButton][PushButton][Error] err = %v", err))
 		return nil, err
@@ -39,18 +44,36 @@ func NewWifiButton(pin string, actionDelay int, persist *Persist) *WifiButton {
 		ad:    actionDelay, // default: 4000 ms
 		start: time.Now(),
 		p:     persist,
-	}
+	}, nil
 }
 
-func (wb *WifiButton) run() {
-	//listener when button is pushed
+// Run ...
+func (wb *WifiButton) Run() {
+	// add listeners
 	wb.btn.On(gpio.ButtonPush, wb.push)
-
-	//listener when button is released
 	wb.btn.On(gpio.ButtonRelease, wb.release)
 }
 
-func (wb *WifiButton) push() {
+// Stop ...
+func (wb *WifiButton) Stop() {
+	// remove listeners
+	wb.btn.DeleteEvent(gpio.ButtonPush)
+	wb.btn.DeleteEvent(gpio.ButtonRelease)
+}
+
+// Halt ...
+func (wb *WifiButton) Halt() error {
+	wb.Stop()
+
+	err := wb.btn.Halt()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (wb *WifiButton) push(_ interface{}) {
 	log.Println("[IoTGreenhouse][WifiButton][Push][Info] here in push method")
 
 	// get blocked value from persist
@@ -67,7 +90,7 @@ func (wb *WifiButton) push() {
 	}
 
 	// set blocked value to persist
-	err := wb.p.SetBool("blocked", true)
+	err = wb.p.SetBool("blocked", true)
 	if err != nil {
 		log.Println(fmt.Sprintf("[IoTGreenhouse][WifiButton][Push][Error] err = %v", err))
 		return
@@ -77,7 +100,7 @@ func (wb *WifiButton) push() {
 	wb.start = time.Now()
 }
 
-func (wb *WifiButton) release() {
+func (wb *WifiButton) release(_ interface{}) {
 	log.Println("[IoTGreenhouse][WifiButton][Release][Info] here in release method")
 
 	//calculate timestamp from start to now
